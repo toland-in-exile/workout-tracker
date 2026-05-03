@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0e1a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Workout Tracker</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div style="width:2rem"></div>
+      <h1>Workout Tracker</h1>
+      <button class="btn-gear" id="btn-settings">⚙</button>
+    </div>
+  </header>
+
+  <main id="app">
+
+    <!-- Home View -->
+    <section id="view-home" class="view active">
+      <div class="home-hero">
+        <div class="phase-badge" id="phase-badge">STRENGTH</div>
+        <p class="today-label" id="today-label">Monday — Back &amp; Chest</p>
+
+        <button class="btn-big" id="btn-today">
+          <span class="btn-big-icon">▶</span>
+          <span id="btn-today-text">Start Today's Workout</span>
+        </button>
+
+        <div class="home-row">
+          <button class="btn-big btn-big-alt btn-half" id="btn-select">
+            <span class="btn-big-icon">☰</span> Pick Workout
+          </button>
+          <button class="btn-big btn-big-alt btn-half" id="btn-cardio-open">
+            <span class="btn-big-icon">♥</span> Log Cardio
+          </button>
+        </div>
+
+        <button class="btn-outline mt-sm" id="btn-create">＋ Edit Program</button>
+      </div>
+
+      <div class="card mt-lg">
+        <h2>Weekly Schedule</h2>
+        <div class="schedule" id="schedule"></div>
+      </div>
+    </section>
+
+    <!-- Create / Edit Program View -->
+    <section id="view-create" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2>Edit Program</h2>
+        <div style="width:3rem"></div>
+      </div>
+
+      <div class="tab-bar mt-md" id="day-tabs">
+        <button class="tab active" data-day="backchest">Back &amp; Chest</button>
+        <button class="tab" data-day="bistris">Bis &amp; Tris</button>
+        <button class="tab" data-day="legs">Legs</button>
+      </div>
+
+      <div id="exercise-list" class="mt-md"></div>
+      <button class="btn-outline mt-md" id="btn-add-exercise">＋ Add Exercise</button>
+      <button class="btn-primary mt-lg" id="btn-save-workout">Save Program</button>
+    </section>
+
+    <!-- Select Workout View -->
+    <section id="view-select" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2>Pick a Workout</h2>
+        <div style="width:3rem"></div>
+      </div>
+      <div id="workout-list" class="mt-md"></div>
+      <p id="no-workouts" class="text-dim text-sm mt-md" style="text-align:center; display:none;">
+        No workouts set up yet — hit Edit Program first!
+      </p>
+    </section>
+
+    <!-- Active Workout View -->
+    <section id="view-active" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2 id="active-workout-title">Workout</h2>
+        <div style="width:3rem"></div>
+      </div>
+      <div class="phase-hint card mt-sm" id="phase-hint"></div>
+
+      <!-- Progress Bar -->
+      <div class="progress-wrap mt-sm" id="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+        <span class="progress-text" id="progress-text">0%</span>
+      </div>
+
+      <!-- Rest Timer -->
+      <div class="rest-timer" id="rest-timer" style="display:none">
+        <div class="rest-timer-ring">
+          <svg viewBox="0 0 100 100">
+            <circle class="ring-bg" cx="50" cy="50" r="45"/>
+            <circle class="ring-fg" id="ring-fg" cx="50" cy="50" r="45"/>
+          </svg>
+          <span class="rest-timer-count" id="rest-count">90</span>
+        </div>
+        <div class="rest-timer-label">Rest</div>
+        <div class="rest-timer-btns">
+          <button class="btn-outline" id="rest-skip">Skip</button>
+          <select id="rest-duration">
+            <option value="30">30s</option>
+            <option value="60">60s</option>
+            <option value="90" selected>90s</option>
+            <option value="120">120s</option>
+            <option value="180">3 min</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="active-exercise-list" class="mt-md"></div>
+      <button class="btn-primary mt-lg" id="btn-finish-workout">Finish Workout</button>
+    </section>
+
+    <!-- Cardio Log View -->
+    <section id="view-cardio" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2>Log Cardio</h2>
+        <div style="width:3rem"></div>
+      </div>
+      <div class="card mt-md">
+        <label class="label">Type</label>
+        <select id="cardio-type">
+          <option value="run">Run</option>
+          <option value="bike">Bike</option>
+          <option value="row">Row</option>
+          <option value="elliptical">Elliptical</option>
+          <option value="swim">Swim</option>
+          <option value="walk">Walk</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="exercise-row">
+          <div>
+            <label class="label">Duration (min)</label>
+            <input type="number" id="cardio-duration" placeholder="30">
+          </div>
+          <div>
+            <label class="label">Distance (mi)</label>
+            <input type="number" id="cardio-distance" placeholder="optional" step="0.1">
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <label class="label">Notes</label>
+        <input type="text" id="cardio-notes" placeholder="How'd it feel?">
+      </div>
+      <button class="btn-primary mt-md" id="btn-save-cardio">Save Cardio</button>
+    </section>
+
+    <!-- Settings View -->
+    <section id="view-settings" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2>Settings</h2>
+        <div style="width:3rem"></div>
+      </div>
+
+      <div class="card mt-md">
+        <h2>Workout</h2>
+        <div class="setting-row mt-sm">
+          <label class="setting-label">Default Rest Timer</label>
+          <select id="setting-rest">
+            <option value="30">30s</option>
+            <option value="60">60s</option>
+            <option value="90">90s</option>
+            <option value="120">2 min</option>
+            <option value="180">3 min</option>
+          </select>
+        </div>
+        <div class="setting-row">
+          <label class="setting-label">Show Progress Tracker</label>
+          <label class="toggle">
+            <input type="checkbox" id="setting-progress" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <label class="setting-label">Default Increment (lbs)</label>
+          <input type="number" id="setting-increment" value="5" min="0" step="2.5" style="width:5rem">
+        </div>
+      </div>
+
+      <div class="card mt-md">
+        <h2>Data</h2>
+        <div class="setting-row mt-sm">
+          <button class="btn-outline" id="settings-export" style="flex:1">↓ Export Backup</button>
+        </div>
+        <div class="setting-row">
+          <button class="btn-outline" id="settings-import-trigger" style="flex:1">↑ Import Backup</button>
+          <input type="file" id="settings-import" accept=".json" style="display:none">
+        </div>
+        <div class="setting-row">
+          <button class="btn-outline btn-danger" id="settings-clear" style="flex:1">⚠ Clear All Data</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- History View -->
+    <section id="view-history" class="view">
+      <div class="view-header">
+        <h2>History</h2>
+      </div>
+      <div class="tab-bar mt-md" id="history-tabs">
+        <button class="tab active" data-htab="all">All</button>
+        <button class="tab" data-htab="lifting">Lifting</button>
+        <button class="tab" data-htab="cardio">Cardio</button>
+      </div>
+      <div id="history-list" class="mt-md"></div>
+      <p id="no-history" class="text-dim text-sm mt-md" style="text-align:center; display:none;">
+        No history yet — go crush a workout!
+      </p>
+    </section>
+
+    <!-- Stats View -->
+    <section id="view-stats" class="view">
+      <div class="view-header">
+        <h2>Progress</h2>
+      </div>
+      <div class="card mt-md">
+        <label class="label">Exercise</label>
+        <select id="stats-exercise"></select>
+      </div>
+      <div class="card mt-sm">
+        <div class="stats-toggle">
+          <button class="tab active" data-metric="weight">Weight</button>
+          <button class="tab" data-metric="reps">Reps</button>
+          <button class="tab" data-metric="volume">Volume</button>
+        </div>
+        <canvas id="stats-chart" width="400" height="220"></canvas>
+      </div>
+      <div id="stats-summary" class="card mt-sm"></div>
+
+      <!-- Session detail popup from chart tap -->
+      <div class="chart-popup" id="chart-popup" style="display:none">
+        <div class="chart-popup-header">
+          <h3 id="chart-popup-title">Session Details</h3>
+          <button class="chart-popup-close" id="chart-popup-close">✕</button>
+        </div>
+        <div id="chart-popup-body"></div>
+      </div>
+      <p id="no-stats" class="text-dim text-sm mt-md" style="text-align:center; display:none;">
+        Need at least 2 sessions to chart progress.
+      </p>
+    </section>
+
+  </main>
+
+  <nav id="bottom-nav">
+    <button class="nav-btn active" data-view="home">Home</button>
+    <button class="nav-btn" data-view="history">History</button>
+    <button class="nav-btn" data-view="stats">Stats</button>
+  </nav>
+
+  <!-- Confirmation Modal -->
+  <div class="modal-overlay" id="modal" style="display:none">
+    <div class="modal-box">
+      <p class="modal-msg" id="modal-msg">Are you sure?</p>
+      <div class="modal-btns">
+        <button class="btn-outline" id="modal-cancel">Cancel</button>
+        <button class="btn-primary" id="modal-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
