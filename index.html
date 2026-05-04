@@ -15,7 +15,10 @@
     <div class="header-inner">
       <div style="width:2rem"></div>
       <h1>Workout Tracker</h1>
-      <button class="btn-gear" id="btn-settings">⚙</button>
+      <div class="header-btns">
+        <button class="btn-gear" id="btn-plate-calc">⚖</button>
+        <button class="btn-gear" id="btn-settings">⚙</button>
+      </div>
     </div>
   </header>
 
@@ -33,11 +36,14 @@
         </button>
 
         <div class="home-row">
-          <button class="btn-big btn-big-alt btn-half" id="btn-select">
-            <span class="btn-big-icon">☰</span> Pick Workout
+          <button class="btn-big btn-big-alt btn-third" id="btn-select">
+            <span class="btn-big-icon">☰</span> Workout
           </button>
-          <button class="btn-big btn-big-alt btn-half" id="btn-cardio-open">
-            <span class="btn-big-icon">♥</span> Log Cardio
+          <button class="btn-big btn-big-alt btn-third" id="btn-cardio-open">
+            <span class="btn-big-icon">♥</span> Cardio
+          </button>
+          <button class="btn-big btn-big-alt btn-third" id="btn-bodyweight-open">
+            <span class="btn-big-icon">⚖</span> Weigh In
           </button>
         </div>
 
@@ -47,6 +53,17 @@
       <div class="card mt-lg">
         <h2>Weekly Schedule</h2>
         <div class="schedule" id="schedule"></div>
+      </div>
+
+      <div class="card mt-md" id="weekly-summary-card">
+        <h2>This Week</h2>
+        <div class="week-summary" id="week-summary"></div>
+      </div>
+      <div class="card mt-md" id="streak-card">
+        <div class="flex justify-between items-center">
+          <h2>🔥 Streak</h2>
+          <span class="streak-count" id="streak-count">0 days</span>
+        </div>
       </div>
     </section>
 
@@ -91,6 +108,15 @@
       </div>
       <div class="phase-hint card mt-sm" id="phase-hint"></div>
 
+      <!-- Warm-up Toggle -->
+      <div class="warmup-toggle mt-sm flex justify-between items-center">
+        <label class="setting-label">Include Warm-up Sets</label>
+        <label class="toggle">
+          <input type="checkbox" id="warmup-check">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <!-- Progress Bar -->
       <div class="progress-wrap mt-sm" id="progress-wrap">
         <div class="progress-bar">
@@ -122,6 +148,10 @@
       </div>
 
       <div id="active-exercise-list" class="mt-md"></div>
+      <div class="card mt-md">
+        <label class="label">Session Notes</label>
+        <input type="text" id="session-notes" placeholder="How'd it go? Any notes...">
+      </div>
       <button class="btn-primary mt-lg" id="btn-finish-workout">Finish Workout</button>
     </section>
 
@@ -191,6 +221,13 @@
           </label>
         </div>
         <div class="setting-row">
+          <label class="setting-label">Rest Timer Sound</label>
+          <label class="toggle">
+            <input type="checkbox" id="setting-sound" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
           <label class="setting-label">Default Increment (lbs)</label>
           <input type="number" id="setting-increment" value="5" min="0" step="2.5" style="width:5rem">
         </div>
@@ -209,6 +246,54 @@
           <button class="btn-outline btn-danger" id="settings-clear" style="flex:1">⚠ Clear All Data</button>
         </div>
       </div>
+    </section>
+
+    <!-- Plate Calculator View -->
+    <section id="view-platecalc" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2>Plate Calculator</h2>
+        <div style="width:3rem"></div>
+      </div>
+      <div class="card mt-md">
+        <label class="label">Target Weight (lbs)</label>
+        <input type="number" id="plate-target" placeholder="e.g. 225" step="5">
+      </div>
+      <div class="card mt-sm">
+        <label class="label">Bar Weight (lbs)</label>
+        <input type="number" id="plate-bar" value="45" step="5">
+      </div>
+      <div class="card mt-md" id="plate-result" style="display:none">
+        <h2>Each Side</h2>
+        <div id="plate-breakdown"></div>
+        <div class="plate-visual mt-md" id="plate-visual"></div>
+      </div>
+    </section>
+
+    <!-- Bodyweight View -->
+    <section id="view-bodyweight" class="view">
+      <div class="view-header flex justify-between items-center">
+        <button class="btn-back" data-goto="home">← Back</button>
+        <h2>Body Weight</h2>
+        <div style="width:3rem"></div>
+      </div>
+      <div class="card mt-md">
+        <div class="exercise-row">
+          <div>
+            <label class="label">Weight (lbs)</label>
+            <input type="number" id="bw-weight" placeholder="e.g. 180" step="0.1">
+          </div>
+          <div>
+            <label class="label">Date</label>
+            <input type="date" id="bw-date">
+          </div>
+        </div>
+        <button class="btn-primary mt-md" id="btn-save-bw">Log Weight</button>
+      </div>
+      <div class="card mt-md">
+        <canvas id="bw-chart" width="400" height="200"></canvas>
+      </div>
+      <div id="bw-history" class="mt-md"></div>
     </section>
 
     <!-- History View -->
@@ -278,6 +363,52 @@
     </div>
   </div>
 
+  <datalist id="exercise-suggestions">
+    <option value="Bench Press">
+    <option value="Incline Bench Press">
+    <option value="Decline Bench Press">
+    <option value="Dumbbell Bench Press">
+    <option value="Dumbbell Flyes">
+    <option value="Cable Crossover">
+    <option value="Push-ups">
+    <option value="Chest Dips">
+    <option value="Barbell Row">
+    <option value="Dumbbell Row">
+    <option value="Cable Row">
+    <option value="Lat Pulldown">
+    <option value="Pull-ups">
+    <option value="Chin-ups">
+    <option value="Deadlift">
+    <option value="T-Bar Row">
+    <option value="Face Pulls">
+    <option value="Barbell Curl">
+    <option value="Dumbbell Curl">
+    <option value="Hammer Curl">
+    <option value="Preacher Curl">
+    <option value="Cable Curl">
+    <option value="Concentration Curl">
+    <option value="Tricep Pushdown">
+    <option value="Tricep Dips">
+    <option value="Skull Crushers">
+    <option value="Overhead Tricep Extension">
+    <option value="Close-Grip Bench Press">
+    <option value="Kickbacks">
+    <option value="Squat">
+    <option value="Leg Press">
+    <option value="Lunges">
+    <option value="Leg Extension">
+    <option value="Leg Curl">
+    <option value="Romanian Deadlift">
+    <option value="Calf Raises">
+    <option value="Hip Thrust">
+    <option value="Bulgarian Split Squat">
+    <option value="Hack Squat">
+    <option value="Shoulder Press">
+    <option value="Lateral Raise">
+    <option value="Front Raise">
+    <option value="Rear Delt Fly">
+    <option value="Shrugs">
+  </datalist>
   <script src="js/app.js"></script>
 </body>
 </html>

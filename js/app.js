@@ -39,6 +39,7 @@ const DEFAULT_SETTINGS = {
   restDuration: 90,
   showProgress: true,
   defaultIncrement: 5,
+  timerSound: true,
 };
 
 function getSettings() {
@@ -85,6 +86,23 @@ const Store = {
     localStorage.setItem(this._cardKey, JSON.stringify(list));
   },
 
+  _bwKey: 'wt_bodyweight',
+
+  getBodyweight() {
+    return JSON.parse(localStorage.getItem(this._bwKey) || '[]');
+  },
+  logBodyweight(entry) {
+    const list = this.getBodyweight();
+    list.unshift(entry);
+    list.sort((a, b) => new Date(b.date) - new Date(a.date));
+    localStorage.setItem(this._bwKey, JSON.stringify(list));
+  },
+  deleteBodyweight(idx) {
+    const list = this.getBodyweight();
+    list.splice(idx, 1);
+    localStorage.setItem(this._bwKey, JSON.stringify(list));
+  },
+
   // Find the most recent strength session for a given split
   getLastStrengthSession(split) {
     return this.getHistory().find(
@@ -128,6 +146,8 @@ function renderHome() {
   }
 
   renderSchedule();
+  renderWeeklySummary();
+  renderStreak();
 }
 
 function renderSchedule() {
@@ -163,10 +183,16 @@ function renderEditExercises() {
   container.innerHTML = exercises.map((ex, i) => `
     <div class="exercise-card" data-idx="${i}">
       <div class="exercise-header">
-        <span class="text-dim text-sm">Exercise ${i + 1}</span>
+        <div class="flex items-center gap-sm">
+          <div class="exercise-reorder">
+            <button class="btn-reorder" onclick="reorderExercise(${i}, -1)" ${i === 0 ? 'disabled' : ''}>▲</button>
+            <button class="btn-reorder" onclick="reorderExercise(${i}, 1)" ${i === exercises.length - 1 ? 'disabled' : ''}>▼</button>
+          </div>
+          <span class="text-dim text-sm">Exercise ${i + 1}</span>
+        </div>
         <button class="btn-remove" onclick="removeExercise(${i})">Remove</button>
       </div>
-      <input type="text" placeholder="Exercise name" data-field="name" value="${ex.name || ''}">
+      <input type="text" placeholder="Exercise name" data-field="name" value="${ex.name || ''}" list="exercise-suggestions">
       <div class="exercise-row-3 mt-sm">
         <div>
           <label class="label">Sets</label>
@@ -195,6 +221,17 @@ function addExerciseCard() {
 function removeExercise(idx) {
   const prog = Store.getProgram();
   prog[currentEditDay].splice(idx, 1);
+  Store.saveProgram(prog);
+  renderEditExercises();
+}
+
+function reorderExercise(idx, direction) {
+  saveCurrentTabSilently();
+  const prog = Store.getProgram();
+  const list = prog[currentEditDay];
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= list.length) return;
+  [list[idx], list[newIdx]] = [list[newIdx], list[idx]];
   Store.saveProgram(prog);
   renderEditExercises();
 }
@@ -286,6 +323,8 @@ function startWorkout(split, phaseOverride) {
     ? Store.getLastStrengthSession(split)
     : Store.getLastSession(split);
 
+  const includeWarmup = document.getElementById('warmup-check').checked;
+
   const container = document.getElementById('active-exercise-list');
   container.innerHTML = exercises.map((ex, ei) => {
     // Find last weights for this exercise
@@ -294,6 +333,31 @@ function startWorkout(split, phaseOverride) {
       : [];
 
     let setRows = '';
+
+    // Warm-up sets (50% and 75% of working weight)
+    if (includeWarmup) {
+      const lastWorking = lastSets.length ? lastSets[0].weight : 0;
+      const baseWeight = activePhase === 'strength' ? lastWorking + (ex.increment || 5) : lastWorking;
+      if (baseWeight > 0) {
+        const warmups = [
+          { pct: 50, weight: Math.round(baseWeight * 0.5 / 5) * 5 },
+          { pct: 75, weight: Math.round(baseWeight * 0.75 / 5) * 5 },
+        ];
+        warmups.forEach((w, wi) => {
+          setRows += `
+            <div class="warmup-set">
+              <div class="warmup-label">Warm-up ${wi + 1} (${w.pct}%)</div>
+              <div class="set-row">
+                <span class="set-label">W${wi + 1}</span>
+                <input type="number" value="${Math.ceil(ex.reps / 2)}" data-ex="${ei}" data-set="w${wi + 1}" data-field="reps" data-warmup="true">
+                <input type="number" value="${w.weight}" data-ex="${ei}" data-set="w${wi + 1}" data-field="weight" data-warmup="true">
+                <input type="checkbox" class="set-check" data-ex="${ei}" data-set="w${wi + 1}" data-warmup="true">
+              </div>
+            </div>`;
+        });
+      }
+    }
+
     for (let s = 1; s <= ex.sets; s++) {
       const prev = lastSets.find(ls => ls.set === s);
       let prefillWeight = '';
@@ -405,21 +469,28 @@ function finishWorkout() {
     const repsInput   = row.querySelector('[data-field="reps"]');
     const weightInput = row.querySelector('[data-field="weight"]');
     const checked     = row.querySelector('.set-check').checked;
+    const isWarmup    = repsInput.dataset.warmup === 'true';
     sets.push({
       exercise: parseInt(repsInput.dataset.ex),
-      set:      parseInt(repsInput.dataset.set),
+      set:      isWarmup ? repsInput.dataset.set : parseInt(repsInput.dataset.set),
       reps:     parseInt(repsInput.value) || 0,
       weight:   parseFloat(weightInput.value) || 0,
       done:     checked,
+      warmup:   isWarmup,
     });
   });
+
+  const notes = document.getElementById('session-notes').value.trim();
 
   Store.logSession({
     split: activeSplit,
     splitLabel: SPLIT_LABELS[activeSplit],
     phase: activePhase,
     sets,
+    notes,
   });
+
+  document.getElementById('session-notes').value = '';
 
   activeSplit = null;
   activePhase = null;
@@ -494,18 +565,25 @@ function renderLiftingCard(session, i) {
     grouped[s.exercise].push(s);
   }
 
+  // Check for PRs in this session
+  const prs = detectPRs(session);
+  const prNames = new Set(prs.map(p => p.exercise));
+
   let detailHTML = '';
   for (const [ei, sets] of Object.entries(grouped)) {
     const exName = exercises[ei] ? exercises[ei].name : `Exercise ${parseInt(ei) + 1}`;
-    const lines = sets.map(s => {
+    const prBadge = prNames.has(exName) ? ' <span class="pr-badge">🏆 PR</span>' : '';
+    const lines = sets.filter(s => !s.warmup).map(s => {
       const cls = s.done ? 'done' : 'skipped';
       return `<div class="history-set-line"><span class="${cls}">Set ${s.set}: ${s.weight} lbs × ${s.reps} reps</span></div>`;
     }).join('');
-    detailHTML += `<div class="history-ex"><div class="history-ex-name">${exName}</div>${lines}</div>`;
+    detailHTML += `<div class="history-ex"><div class="history-ex-name">${exName}${prBadge}</div>${lines}</div>`;
   }
 
+  const notesHTML = session.notes ? `<div class="history-notes">"${session.notes}"</div>` : '';
+
   return `
-    <div class="history-card" data-idx="${i}">
+    <div class="history-card" data-idx="${i}" data-kind="lifting">
       <div class="history-card-header">
         <div>
           <h3>${session.splitLabel || session.split}</h3>
@@ -515,7 +593,11 @@ function renderLiftingCard(session, i) {
       </div>
       <div class="history-detail">
         ${detailHTML}
-        <button class="btn-delete-session" onclick="deleteSession('lifting', ${i})">Delete Session</button>
+        ${notesHTML}
+        <div class="history-actions">
+          <button class="btn-edit-session" onclick="editSession('lifting', ${i})">Edit</button>
+          <button class="btn-delete-session" onclick="deleteSession('lifting', ${i})">Delete</button>
+        </div>
       </div>
     </div>`;
 }
@@ -800,6 +882,116 @@ function showChartPopup(point, exName) {
   popup.style.display = 'block';
 }
 
+// ── Weekly Summary ──────────────────────────────────────
+function renderWeeklySummary() {
+  const history = Store.getHistory();
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun
+
+  // Find start of this week (Monday)
+  const monday = new Date(now);
+  const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  monday.setDate(now.getDate() + diff);
+  monday.setHours(0, 0, 0, 0);
+
+  // Check which days have sessions this week
+  const completedDays = new Set();
+  for (const session of history) {
+    const sd = new Date(session.date);
+    if (sd >= monday) {
+      completedDays.add(sd.getDay());
+    }
+  }
+
+  const dayLabels = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const dayNums = [1, 2, 3, 4, 5, 6, 0]; // Mon=1 through Sun=0
+
+  const el = document.getElementById('week-summary');
+  el.innerHTML = dayLabels.map((label, i) => {
+    const dNum = dayNums[i];
+    const done = completedDays.has(dNum);
+    const isToday = dNum === dayOfWeek;
+    let cls = 'week-summary-day';
+    if (done) cls += ' completed';
+    if (isToday) cls += ' today';
+    const check = done ? '✓' : (dNum === 0 ? '—' : '○');
+    return `<div class="${cls}"><span class="summary-check">${check}</span>${label}</div>`;
+  }).join('');
+}
+
+// ── Edit History Session ────────────────────────────────
+function editSession(kind, idx) {
+  if (kind !== 'lifting') return;
+  const hist = Store.getHistory();
+  const session = hist[idx];
+  if (!session) return;
+
+  const prog = Store.getProgram();
+  const exercises = prog[session.split] || [];
+
+  const card = document.querySelector(`.history-card[data-idx="${idx}"][data-kind="lifting"]`);
+  if (!card) return;
+  const detail = card.querySelector('.history-detail');
+
+  // Group sets by exercise
+  const grouped = {};
+  for (const s of session.sets) {
+    if (!grouped[s.exercise]) grouped[s.exercise] = [];
+    grouped[s.exercise].push(s);
+  }
+
+  let editHTML = '';
+  for (const [ei, sets] of Object.entries(grouped)) {
+    const exName = exercises[ei] ? exercises[ei].name : `Exercise ${parseInt(ei) + 1}`;
+    const rows = sets.map(s => `
+      <div class="history-edit-row">
+        <span class="set-label">${s.set}</span>
+        <input type="number" value="${s.reps}" data-ex="${ei}" data-set="${s.set}" data-field="reps">
+        <input type="number" value="${s.weight}" data-ex="${ei}" data-set="${s.set}" data-field="weight">
+        <input type="checkbox" class="set-check" data-ex="${ei}" data-set="${s.set}" ${s.done ? 'checked' : ''}>
+      </div>`).join('');
+    editHTML += `<div class="history-ex"><div class="history-ex-name">${exName}</div>${rows}</div>`;
+  }
+
+  editHTML += `
+    <div class="card mt-sm">
+      <label class="label">Notes</label>
+      <input type="text" id="edit-notes-${idx}" value="${session.notes || ''}" placeholder="Session notes...">
+    </div>
+    <div class="history-actions mt-sm">
+      <button class="btn-outline" onclick="renderHistory()">Cancel</button>
+      <button class="btn-primary" onclick="saveEditSession(${idx})">Save</button>
+    </div>`;
+
+  detail.innerHTML = editHTML;
+  card.classList.add('expanded');
+}
+
+function saveEditSession(idx) {
+  const hist = Store.getHistory();
+  const session = hist[idx];
+  const card = document.querySelector(`.history-card[data-idx="${idx}"][data-kind="lifting"]`);
+
+  const newSets = [];
+  card.querySelectorAll('.history-edit-row').forEach(row => {
+    const repsInput = row.querySelector('[data-field="reps"]');
+    const weightInput = row.querySelector('[data-field="weight"]');
+    const checked = row.querySelector('.set-check').checked;
+    newSets.push({
+      exercise: parseInt(repsInput.dataset.ex),
+      set: parseInt(repsInput.dataset.set),
+      reps: parseInt(repsInput.value) || 0,
+      weight: parseFloat(weightInput.value) || 0,
+      done: checked,
+    });
+  });
+
+  session.sets = newSets;
+  session.notes = document.getElementById(`edit-notes-${idx}`).value.trim();
+  localStorage.setItem('wt_history', JSON.stringify(hist));
+  renderHistory();
+}
+
 // ── Confirmation Modal ──────────────────────────────────
 let modalResolve = null;
 
@@ -843,6 +1035,7 @@ function startRestTimer() {
     ringEl.style.strokeDashoffset = (progress * circumference).toFixed(1);
 
     if (restRemaining <= 0) {
+      timerAlert();
       stopRestTimer();
     }
   }, 1000);
@@ -854,12 +1047,36 @@ function stopRestTimer() {
   document.getElementById('rest-timer').style.display = 'none';
 }
 
+function timerAlert() {
+  if (!getSettings().timerSound) return;
+
+  // Vibrate
+  if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+
+  // Beep using Web Audio API
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.25, 0.5].forEach(delay => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      osc.type = 'sine';
+      gain.gain.value = 0.3;
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.15);
+    });
+  } catch (e) {}
+}
+
 // ── Export / Import ─────────────────────────────────────
 function exportData() {
   const data = {
     program:  Store.getProgram(),
     history:  Store.getHistory(),
     cardio:   Store.getCardio(),
+    bodyweight: Store.getBodyweight(),
     exported: new Date().toISOString(),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -879,9 +1096,10 @@ async function importData(file) {
   const ok = await confirm(`Import will replace all current data. Continue?`);
   if (!ok) return;
 
-  if (data.program)  Store.saveProgram(data.program);
-  if (data.history)  localStorage.setItem('wt_history', JSON.stringify(data.history));
-  if (data.cardio)   localStorage.setItem('wt_cardio', JSON.stringify(data.cardio));
+  if (data.program)    Store.saveProgram(data.program);
+  if (data.history)    localStorage.setItem('wt_history', JSON.stringify(data.history));
+  if (data.cardio)     localStorage.setItem('wt_cardio', JSON.stringify(data.cardio));
+  if (data.bodyweight) localStorage.setItem('wt_bodyweight', JSON.stringify(data.bodyweight));
 
   renderHome();
   showView('home');
@@ -925,6 +1143,7 @@ function loadSettingsView() {
   document.getElementById('setting-rest').value = s.restDuration;
   document.getElementById('setting-progress').checked = s.showProgress;
   document.getElementById('setting-increment').value = s.defaultIncrement;
+  document.getElementById('setting-sound').checked = s.timerSound;
 }
 
 function wireSettingsListeners() {
@@ -940,6 +1159,10 @@ function wireSettingsListeners() {
 
   document.getElementById('setting-increment').addEventListener('change', (e) => {
     saveSetting('defaultIncrement', parseFloat(e.target.value) || 5);
+  });
+
+  document.getElementById('setting-sound').addEventListener('change', (e) => {
+    saveSetting('timerSound', e.target.checked);
   });
 
   document.getElementById('settings-export').addEventListener('click', exportData);
@@ -961,6 +1184,251 @@ function wireSettingsListeners() {
     localStorage.removeItem('wt_settings');
     renderHome();
     showView('home');
+  });
+}
+
+// ── PR Detection ────────────────────────────────────────
+function detectPRs(session) {
+  const history = Store.getHistory();
+  const prog = Store.getProgram();
+  const exercises = prog[session.split] || [];
+  const prs = [];
+
+  for (let ei = 0; ei < exercises.length; ei++) {
+    const currentSets = session.sets.filter(s => s.exercise === ei && s.done && !s.warmup);
+    if (!currentSets.length) continue;
+
+    const currentMax = Math.max(...currentSets.map(s => s.weight));
+
+    // Check all prior sessions for this exercise
+    let prevMax = 0;
+    for (const prev of history) {
+      if (prev.date === session.date) continue;
+      const prevExercises = prog[prev.split] || [];
+      const prevIdx = prevExercises.findIndex(e => e.name === exercises[ei].name);
+      if (prevIdx === -1) continue;
+      const prevSets = prev.sets.filter(s => s.exercise === prevIdx && s.done && !s.warmup);
+      if (prevSets.length) prevMax = Math.max(prevMax, ...prevSets.map(s => s.weight));
+    }
+
+    if (currentMax > prevMax && prevMax > 0) {
+      prs.push({ exercise: exercises[ei].name, weight: currentMax, prev: prevMax });
+    }
+  }
+  return prs;
+}
+
+function getPRsForExercise(exName) {
+  const history = Store.getHistory();
+  const prog = Store.getProgram();
+  let maxWeight = 0;
+  let prDate = null;
+
+  for (const session of history) {
+    const exercises = prog[session.split] || [];
+    const exIdx = exercises.findIndex(e => e.name === exName);
+    if (exIdx === -1) continue;
+    const sets = session.sets.filter(s => s.exercise === exIdx && s.done && !s.warmup);
+    if (!sets.length) continue;
+    const sessionMax = Math.max(...sets.map(s => s.weight));
+    if (sessionMax > maxWeight) {
+      maxWeight = sessionMax;
+      prDate = session.date;
+    }
+  }
+  return { weight: maxWeight, date: prDate };
+}
+
+// ── Streak Calculation ──────────────────────────────────
+function calculateStreak() {
+  const history = Store.getHistory();
+  if (!history.length) return 0;
+
+  // Get unique workout dates (as date strings)
+  const dates = [...new Set(history.map(s => s.date.slice(0, 10)))].sort().reverse();
+  if (!dates.length) return 0;
+
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  for (let i = 0; i <= 365; i++) {
+    const checkDate = new Date(today);
+    checkDate.setDate(today.getDate() - i);
+    const checkStr = checkDate.toISOString().slice(0, 10);
+    const dow = checkDate.getDay();
+
+    // Skip rest days (Sunday)
+    if (dow === 0) continue;
+
+    if (dates.includes(checkStr)) {
+      streak++;
+    } else {
+      // Allow today to be incomplete if it's not over yet
+      if (i === 0) continue;
+      break;
+    }
+  }
+  return streak;
+}
+
+function renderStreak() {
+  const streak = calculateStreak();
+  const el = document.getElementById('streak-count');
+  el.textContent = `${streak} day${streak !== 1 ? 's' : ''}`;
+}
+
+// ── Plate Calculator ────────────────────────────────────
+const PLATE_SIZES = [45, 35, 25, 10, 5, 2.5];
+const PLATE_COLORS = {
+  45: { bg: '#1d4ed8', h: 50 },
+  35: { bg: '#7c3aed', h: 44 },
+  25: { bg: '#059669', h: 38 },
+  10: { bg: '#d97706', h: 32 },
+  5:  { bg: '#dc2626', h: 26 },
+  2.5:{ bg: '#6b7280', h: 20 },
+};
+
+function calculatePlates() {
+  const target = parseFloat(document.getElementById('plate-target').value) || 0;
+  const bar = parseFloat(document.getElementById('plate-bar').value) || 45;
+  const resultDiv = document.getElementById('plate-result');
+  const breakdownDiv = document.getElementById('plate-breakdown');
+  const visualDiv = document.getElementById('plate-visual');
+
+  if (target <= bar) {
+    resultDiv.style.display = 'none';
+    return;
+  }
+
+  let perSide = (target - bar) / 2;
+  const plates = [];
+
+  for (const size of PLATE_SIZES) {
+    const count = Math.floor(perSide / size);
+    if (count > 0) {
+      plates.push({ size, count });
+      perSide -= count * size;
+    }
+  }
+
+  resultDiv.style.display = 'block';
+  breakdownDiv.innerHTML = plates.map(p =>
+    `<div class="plate-row"><span>${p.size} lbs</span><span class="plate-count">× ${p.count}</span></div>`
+  ).join('') + (perSide > 0 ? `<div class="plate-row text-dim"><span>Remaining: ${perSide} lbs (no plate match)</span></div>` : '');
+
+  // Visual
+  let visualHTML = '';
+  const allPlates = [];
+  for (const p of plates) {
+    for (let i = 0; i < p.count; i++) allPlates.push(p.size);
+  }
+  const reversed = [...allPlates].reverse();
+  reversed.forEach(size => {
+    const c = PLATE_COLORS[size];
+    visualHTML += `<div class="plate-disc" style="background:${c.bg};height:${c.h}px;width:${Math.max(18, size / 2)}px">${size}</div>`;
+  });
+  visualHTML += `<div class="plate-bar-visual"></div>`;
+  allPlates.forEach(size => {
+    const c = PLATE_COLORS[size];
+    visualHTML += `<div class="plate-disc" style="background:${c.bg};height:${c.h}px;width:${Math.max(18, size / 2)}px">${size}</div>`;
+  });
+  visualDiv.innerHTML = visualHTML;
+}
+
+// ── Bodyweight Tracking ─────────────────────────────────
+function renderBodyweightView() {
+  document.getElementById('bw-date').value = new Date().toISOString().slice(0, 10);
+  renderBWHistory();
+  renderBWChart();
+}
+
+function saveBodyweight() {
+  const weight = parseFloat(document.getElementById('bw-weight').value);
+  const date = document.getElementById('bw-date').value;
+  if (!weight) { document.getElementById('bw-weight').focus(); return; }
+
+  Store.logBodyweight({ weight, date: date || new Date().toISOString().slice(0, 10) });
+  document.getElementById('bw-weight').value = '';
+  renderBWHistory();
+  renderBWChart();
+}
+
+function renderBWHistory() {
+  const list = Store.getBodyweight();
+  const container = document.getElementById('bw-history');
+  if (!list.length) { container.innerHTML = '<p class="text-dim text-sm" style="text-align:center">No entries yet.</p>'; return; }
+
+  container.innerHTML = '<div class="card">' + list.slice(0, 20).map((e, i) => {
+    const d = new Date(e.date + 'T00:00:00');
+    const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return `<div class="bw-entry">
+      <span class="bw-weight">${e.weight} lbs</span>
+      <span class="bw-date">${dateStr}</span>
+      <button class="bw-delete" onclick="deleteBW(${i})">✕</button>
+    </div>`;
+  }).join('') + '</div>';
+}
+
+function deleteBW(idx) {
+  Store.deleteBodyweight(idx);
+  renderBWHistory();
+  renderBWChart();
+}
+
+function renderBWChart() {
+  const list = Store.getBodyweight();
+  const canvas = document.getElementById('bw-chart');
+  const ctx = canvas.getContext('2d');
+
+  if (list.length < 2) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
+  const points = [...list].reverse();
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  const W = rect.width, H = rect.height;
+  const pad = { top: 15, right: 15, bottom: 25, left: 40 };
+  const plotW = W - pad.left - pad.right;
+  const plotH = H - pad.top - pad.bottom;
+  ctx.clearRect(0, 0, W, H);
+
+  const values = points.map(p => p.weight);
+  const minV = Math.min(...values) - 2;
+  const maxV = Math.max(...values) + 2;
+  const x = i => pad.left + (points.length === 1 ? plotW / 2 : (i / (points.length - 1)) * plotW);
+  const y = v => pad.top + plotH - ((v - minV) / (maxV - minV)) * plotH;
+
+  // Grid
+  ctx.strokeStyle = '#1e2d4a'; ctx.lineWidth = 1;
+  for (let i = 0; i <= 3; i++) {
+    const gy = pad.top + (i / 3) * plotH;
+    ctx.beginPath(); ctx.moveTo(pad.left, gy); ctx.lineTo(W - pad.right, gy); ctx.stroke();
+    ctx.fillStyle = '#7a8baa'; ctx.font = '11px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxV - (i / 3) * (maxV - minV)), pad.left - 6, gy + 4);
+  }
+
+  // Line
+  ctx.beginPath(); ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+  points.forEach((p, i) => { i === 0 ? ctx.moveTo(x(i), y(p.weight)) : ctx.lineTo(x(i), y(p.weight)); });
+  ctx.stroke();
+
+  // Fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + plotH);
+  grad.addColorStop(0, 'rgba(168,85,247,0.25)'); grad.addColorStop(1, 'rgba(168,85,247,0)');
+  ctx.lineTo(x(points.length - 1), pad.top + plotH); ctx.lineTo(x(0), pad.top + plotH);
+  ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+
+  // Dots
+  points.forEach((p, i) => {
+    ctx.beginPath(); ctx.arc(x(i), y(p.weight), 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#a855f7'; ctx.fill();
+    ctx.strokeStyle = '#0a0e1a'; ctx.lineWidth = 2; ctx.stroke();
   });
 }
 
@@ -994,6 +1462,21 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-cardio-open').addEventListener('click', () => {
     showView('cardio');
   });
+
+  document.getElementById('btn-bodyweight-open').addEventListener('click', () => {
+    renderBodyweightView();
+    showView('bodyweight');
+  });
+
+  // Plate calculator
+  document.getElementById('btn-plate-calc').addEventListener('click', () => {
+    showView('platecalc');
+  });
+  document.getElementById('plate-target').addEventListener('input', calculatePlates);
+  document.getElementById('plate-bar').addEventListener('input', calculatePlates);
+
+  // Bodyweight
+  document.getElementById('btn-save-bw').addEventListener('click', saveBodyweight);
 
   document.getElementById('btn-create').addEventListener('click', () => {
     currentEditDay = 'backchest';
