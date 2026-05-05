@@ -1430,6 +1430,36 @@ button {
   color: #ef4444;
 }
 
+/* ── Muscle Pills (exercise editor) ──────────── */
+.muscle-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.muscle-pill {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: capitalize;
+  border-radius: 12px;
+  background: var(--bg-input);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.muscle-pill:active {
+  transform: scale(0.95);
+}
+
+.muscle-pill.active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border-color: rgba(34, 197, 94, 0.4);
+}
+
 /* ── Utility ─────────────────────────────────── */
 .mt-sm  { margin-top: 0.5rem; }
 .mt-md  { margin-top: 1rem; }

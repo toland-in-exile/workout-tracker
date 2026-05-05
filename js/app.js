@@ -192,7 +192,13 @@ function renderEditExercises() {
         </div>
         <button class="btn-remove" onclick="removeExercise(${i})">Remove</button>
       </div>
-      <input type="text" placeholder="Exercise name" data-field="name" value="${ex.name || ''}" list="exercise-suggestions">
+      <input type="text" placeholder="Exercise name" data-field="name" value="${ex.name || ''}" list="exercise-suggestions" oninput="autoFillMuscles(this)">
+      <div class="muscle-pills mt-sm" data-idx="${i}">
+        ${MUSCLE_GROUPS.map(m => {
+          const active = (ex.muscles || []).includes(m);
+          return `<button type="button" class="muscle-pill${active ? ' active' : ''}" data-muscle="${m}" onclick="toggleMusclePill(this)">${m}</button>`;
+        }).join('')}
+      </div>
       <div class="exercise-row-3 mt-sm">
         <div>
           <label class="label">Sets</label>
@@ -208,6 +214,26 @@ function renderEditExercises() {
         </div>
       </div>
     </div>`).join('');
+}
+
+function toggleMusclePill(btn) {
+  btn.classList.toggle('active');
+}
+
+function autoFillMuscles(input) {
+  const name = input.value.toLowerCase().trim();
+  const match = EXERCISE_MUSCLES[name];
+  if (!match) return;
+
+  const card = input.closest('.exercise-card');
+  const pills = card.querySelectorAll('.muscle-pill');
+  pills.forEach(pill => {
+    pill.classList.toggle('active', match.includes(pill.dataset.muscle));
+  });
+}
+
+function getMusclePillsFromCard(card) {
+  return [...card.querySelectorAll('.muscle-pill.active')].map(p => p.dataset.muscle);
 }
 
 function addExerciseCard() {
@@ -246,8 +272,9 @@ function saveProgram() {
     const sets = parseInt(card.querySelector('[data-field="sets"]').value) || 3;
     const reps = parseInt(card.querySelector('[data-field="reps"]').value) || 10;
     const increment = parseFloat(card.querySelector('[data-field="increment"]').value) || 5;
+    const muscles = getMusclePillsFromCard(card);
     if (!name) { card.querySelector('[data-field="name"]').focus(); return; }
-    exercises.push({ name, sets, reps, increment });
+    exercises.push({ name, sets, reps, increment, muscles });
   }
 
   prog[currentEditDay] = exercises;
@@ -1483,9 +1510,16 @@ const EXERCISE_MUSCLES = {
 };
 
 function getMusclesForExercise(name) {
+  // Check program data first (user-defined muscles)
+  const prog = Store.getProgram();
+  for (const split of Object.values(prog)) {
+    if (!Array.isArray(split)) continue;
+    const match = split.find(ex => ex.name && ex.name.toLowerCase() === name.toLowerCase());
+    if (match && match.muscles && match.muscles.length) return match.muscles;
+  }
+  // Fall back to hardcoded mapping
   const key = name.toLowerCase().trim();
   if (EXERCISE_MUSCLES[key]) return EXERCISE_MUSCLES[key];
-  // Fuzzy match: check if exercise name contains a known key
   for (const [k, v] of Object.entries(EXERCISE_MUSCLES)) {
     if (key.includes(k) || k.includes(key)) return v;
   }
@@ -1745,7 +1779,8 @@ function saveCurrentTabSilently() {
     const sets = parseInt(card.querySelector('[data-field="sets"]').value) || 3;
     const reps = parseInt(card.querySelector('[data-field="reps"]').value) || 10;
     const increment = parseFloat(card.querySelector('[data-field="increment"]').value) || 5;
-    exercises.push({ name, sets, reps, increment });
+    const muscles = getMusclePillsFromCard(card);
+    exercises.push({ name, sets, reps, increment, muscles });
   }
 
   prog[currentEditDay] = exercises;
