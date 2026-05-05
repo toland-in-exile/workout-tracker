@@ -303,69 +303,68 @@
       </div>
 
       <div class="body-map-wrap mt-md">
-        <svg viewBox="0 0 200 420" class="body-map-svg" id="body-svg">
-          <!-- Body silhouette outline -->
-          <circle cx="100" cy="32" r="20" class="body-outline"/>
-          <rect x="93" y="52" width="14" height="10" rx="3" class="body-outline"/>
+        <div class="body-dual">
 
-          <!-- Torso outline -->
-          <path d="M68,65 Q58,68 52,78 L48,145 Q48,172 72,178 L72,190 L92,190 L92,178 Q100,180 108,178 L108,190 L128,190 L128,178 Q152,172 152,145 L148,78 Q142,68 132,65 Z" class="body-outline"/>
+          <!-- ═══ FRONT VIEW ═══ -->
+          <div class="body-col">
+            <svg viewBox="0 0 160 380" class="body-map-svg">
+              <!-- Silhouette -->
+              <circle cx="80" cy="30" r="18" class="body-outline"/>
+              <rect x="73" y="48" width="14" height="10" rx="3" class="body-outline"/>
+              <path d="M54,60 Q44,64 40,74 L37,140 Q37,160 56,168 L56,182 L72,182 Q80,184 88,182 L104,182 L104,168 Q123,160 123,140 L120,74 Q116,64 106,60 Z" class="body-outline"/>
+              <path d="M40,74 Q28,78 26,90 L22,142 Q18,158 24,162 L30,162 Q34,158 34,148 L37,100" class="body-outline"/>
+              <path d="M120,74 Q132,78 134,90 L138,142 Q142,158 136,162 L130,162 Q126,158 126,148 L123,100" class="body-outline"/>
+              <path d="M56,182 L52,250 Q48,270 47,300 Q46,330 50,345 L64,345 Q66,330 65,300 L70,250 L72,182 Z" class="body-outline"/>
+              <path d="M88,182 L90,250 L95,300 Q96,330 96,345 L110,345 Q114,330 113,300 Q112,270 108,250 L104,182 Z" class="body-outline"/>
 
-          <!-- Arm outlines -->
-          <path d="M52,78 Q38,82 34,95 L28,155 Q24,172 30,175 L38,175 Q42,172 42,160 L48,110 L52,78" class="body-outline"/>
-          <path d="M148,78 Q162,82 166,95 L172,155 Q176,172 170,175 L162,175 Q158,172 158,160 L152,110 L148,78" class="body-outline"/>
+              <!-- Front muscles -->
+              <ellipse data-muscle="shoulders" cx="46" cy="70" rx="10" ry="8" class="muscle-zone"/>
+              <ellipse data-muscle="shoulders" cx="114" cy="70" rx="10" ry="8" class="muscle-zone"/>
+              <path data-muscle="chest" d="M62,68 L98,68 L96,96 Q80,102 64,96 Z" class="muscle-zone"/>
+              <ellipse data-muscle="biceps" cx="34" cy="108" rx="7" ry="18" class="muscle-zone"/>
+              <ellipse data-muscle="biceps" cx="126" cy="108" rx="7" ry="18" class="muscle-zone"/>
+              <ellipse data-muscle="forearms" cx="28" cy="142" rx="5" ry="15" class="muscle-zone"/>
+              <ellipse data-muscle="forearms" cx="132" cy="142" rx="5" ry="15" class="muscle-zone"/>
+              <rect data-muscle="abs" x="66" y="98" width="28" height="48" rx="4" class="muscle-zone"/>
+              <rect data-muscle="quads" x="56" y="188" width="16" height="55" rx="7" class="muscle-zone"/>
+              <rect data-muscle="quads" x="88" y="188" width="16" height="55" rx="7" class="muscle-zone"/>
+              <ellipse data-muscle="calves" cx="58" cy="300" rx="7" ry="26" class="muscle-zone"/>
+              <ellipse data-muscle="calves" cx="102" cy="300" rx="7" ry="26" class="muscle-zone"/>
+            </svg>
+            <span class="body-view-label">FRONT</span>
+          </div>
 
-          <!-- Leg outlines -->
-          <path d="M72,190 L66,270 Q62,290 60,330 Q58,355 64,370 L80,370 Q84,355 82,330 L88,270 L92,190 Z" class="body-outline"/>
-          <path d="M108,190 L114,270 Q118,290 120,330 Q122,355 136,370 L120,370 Q116,355 118,330 L112,270 L108,190 Z" class="body-outline"/>
+          <!-- ═══ BACK VIEW ═══ -->
+          <div class="body-col">
+            <svg viewBox="0 0 160 380" class="body-map-svg">
+              <!-- Silhouette (same shape) -->
+              <circle cx="80" cy="30" r="18" class="body-outline"/>
+              <rect x="73" y="48" width="14" height="10" rx="3" class="body-outline"/>
+              <path d="M54,60 Q44,64 40,74 L37,140 Q37,160 56,168 L56,182 L72,182 Q80,184 88,182 L104,182 L104,168 Q123,160 123,140 L120,74 Q116,64 106,60 Z" class="body-outline"/>
+              <path d="M40,74 Q28,78 26,90 L22,142 Q18,158 24,162 L30,162 Q34,158 34,148 L37,100" class="body-outline"/>
+              <path d="M120,74 Q132,78 134,90 L138,142 Q142,158 136,162 L130,162 Q126,158 126,148 L123,100" class="body-outline"/>
+              <path d="M56,182 L52,250 Q48,270 47,300 Q46,330 50,345 L64,345 Q66,330 65,300 L70,250 L72,182 Z" class="body-outline"/>
+              <path d="M88,182 L90,250 L95,300 Q96,330 96,345 L110,345 Q114,330 113,300 Q112,270 108,250 L104,182 Z" class="body-outline"/>
 
-          <!-- ═══ Muscle Group Overlays (clickable) ═══ -->
+              <!-- Back muscles -->
+              <ellipse data-muscle="shoulders" cx="46" cy="70" rx="10" ry="8" class="muscle-zone"/>
+              <ellipse data-muscle="shoulders" cx="114" cy="70" rx="10" ry="8" class="muscle-zone"/>
+              <path data-muscle="back" d="M58,66 L102,66 L104,145 Q80,155 56,145 Z" class="muscle-zone"/>
+              <ellipse data-muscle="triceps" cx="34" cy="112" rx="6" ry="16" class="muscle-zone"/>
+              <ellipse data-muscle="triceps" cx="126" cy="112" rx="6" ry="16" class="muscle-zone"/>
+              <ellipse data-muscle="forearms" cx="28" cy="142" rx="5" ry="15" class="muscle-zone"/>
+              <ellipse data-muscle="forearms" cx="132" cy="142" rx="5" ry="15" class="muscle-zone"/>
+              <ellipse data-muscle="glutes" cx="66" cy="178" rx="10" ry="8" class="muscle-zone"/>
+              <ellipse data-muscle="glutes" cx="94" cy="178" rx="10" ry="8" class="muscle-zone"/>
+              <rect data-muscle="hamstrings" x="55" y="190" width="16" height="52" rx="7" class="muscle-zone"/>
+              <rect data-muscle="hamstrings" x="89" y="190" width="16" height="52" rx="7" class="muscle-zone"/>
+              <ellipse data-muscle="calves" cx="58" cy="300" rx="7" ry="26" class="muscle-zone"/>
+              <ellipse data-muscle="calves" cx="102" cy="300" rx="7" ry="26" class="muscle-zone"/>
+            </svg>
+            <span class="body-view-label">BACK</span>
+          </div>
 
-          <!-- Shoulders / Delts -->
-          <ellipse data-muscle="shoulders" cx="58" cy="78" rx="12" ry="9" class="muscle-zone"/>
-          <ellipse data-muscle="shoulders" cx="142" cy="78" rx="12" ry="9" class="muscle-zone"/>
-
-          <!-- Chest -->
-          <path data-muscle="chest" d="M72,72 L128,72 L126,108 Q100,116 74,108 Z" class="muscle-zone"/>
-
-          <!-- Back (shown as lateral zones on torso) -->
-          <path data-muscle="back" d="M68,72 L74,72 L74,140 Q68,145 64,140 L58,85 Z" class="muscle-zone"/>
-          <path data-muscle="back" d="M132,72 L126,72 L126,140 Q132,145 136,140 L142,85 Z" class="muscle-zone"/>
-
-          <!-- Biceps -->
-          <ellipse data-muscle="biceps" cx="44" cy="115" rx="8" ry="20" class="muscle-zone"/>
-          <ellipse data-muscle="biceps" cx="156" cy="115" rx="8" ry="20" class="muscle-zone"/>
-
-          <!-- Triceps -->
-          <ellipse data-muscle="triceps" cx="38" cy="120" rx="6" ry="16" class="muscle-zone"/>
-          <ellipse data-muscle="triceps" cx="162" cy="120" rx="6" ry="16" class="muscle-zone"/>
-
-          <!-- Forearms -->
-          <ellipse data-muscle="forearms" cx="34" cy="152" rx="6" ry="18" class="muscle-zone"/>
-          <ellipse data-muscle="forearms" cx="166" cy="152" rx="6" ry="18" class="muscle-zone"/>
-
-          <!-- Abs / Core -->
-          <rect data-muscle="abs" x="82" y="110" width="36" height="55" rx="5" class="muscle-zone"/>
-
-          <!-- Glutes -->
-          <ellipse data-muscle="glutes" cx="82" cy="192" rx="10" ry="8" class="muscle-zone"/>
-          <ellipse data-muscle="glutes" cx="118" cy="192" rx="10" ry="8" class="muscle-zone"/>
-
-          <!-- Quads -->
-          <rect data-muscle="quads" x="72" y="200" width="18" height="62" rx="8" class="muscle-zone"/>
-          <rect data-muscle="quads" x="110" y="200" width="18" height="62" rx="8" class="muscle-zone"/>
-
-          <!-- Hamstrings -->
-          <rect data-muscle="hamstrings" x="68" y="210" width="12" height="50" rx="6" class="muscle-zone"/>
-          <rect data-muscle="hamstrings" x="120" y="210" width="12" height="50" rx="6" class="muscle-zone"/>
-
-          <!-- Calves -->
-          <ellipse data-muscle="calves" cx="74" cy="320" rx="8" ry="30" class="muscle-zone"/>
-          <ellipse data-muscle="calves" cx="126" cy="320" rx="8" ry="30" class="muscle-zone"/>
-
-          <!-- Labels (non-interactive) -->
-          <text x="100" y="32" class="muscle-label" text-anchor="middle" font-size="6"></text>
-        </svg>
+        </div>
 
         <!-- Legend -->
         <div class="body-legend">

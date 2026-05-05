@@ -1306,9 +1306,32 @@ button {
   align-items: center;
 }
 
+.body-dual {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  width: 100%;
+}
+
+.body-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  max-width: 180px;
+}
+
+.body-view-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 0.35rem;
+}
+
 .body-map-svg {
   width: 100%;
-  max-width: 280px;
   height: auto;
 }
 
