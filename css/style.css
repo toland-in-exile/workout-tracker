@@ -1299,6 +1299,114 @@ button {
   padding: 0.2rem 0.4rem;
 }
 
+/* ── Body Map ────────────────────────────────── */
+.body-map-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.body-map-svg {
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+}
+
+.body-outline {
+  fill: var(--bg-input);
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.muscle-zone {
+  fill: #ef4444;
+  fill-opacity: 0.4;
+  stroke: #ef4444;
+  stroke-width: 0.8;
+  stroke-opacity: 0.6;
+  cursor: pointer;
+  transition: fill-opacity 0.2s, stroke-opacity 0.2s;
+}
+
+.muscle-zone:hover {
+  fill-opacity: 0.7;
+  stroke-opacity: 1;
+}
+
+.muscle-zone.worked {
+  fill: #22c55e;
+  stroke: #22c55e;
+}
+
+.muscle-label {
+  fill: var(--text-dim);
+  pointer-events: none;
+}
+
+.body-legend {
+  display: flex;
+  gap: 1.25rem;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.legend-worked {
+  background: #22c55e;
+}
+
+.legend-resting {
+  background: #ef4444;
+}
+
+/* Muscle summary list */
+.muscle-list-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.muscle-list-row:last-child {
+  border-bottom: none;
+}
+
+.muscle-list-row:active {
+  background: var(--bg-input);
+}
+
+.muscle-status {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+}
+
+.muscle-status.worked {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.muscle-status.resting {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
 /* ── Utility ─────────────────────────────────── */
 .mt-sm  { margin-top: 0.5rem; }
 .mt-md  { margin-top: 1rem; }

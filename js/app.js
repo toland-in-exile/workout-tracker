@@ -1432,6 +1432,161 @@ function renderBWChart() {
   });
 }
 
+// ── Body Map / Muscle Tracking ───────────────────────────
+const MUSCLE_GROUPS = ['shoulders','chest','back','biceps','triceps','forearms','abs','glutes','quads','hamstrings','calves'];
+
+const EXERCISE_MUSCLES = {
+  'bench press': ['chest','triceps','shoulders'],
+  'incline bench press': ['chest','shoulders','triceps'],
+  'decline bench press': ['chest','triceps'],
+  'dumbbell bench press': ['chest','triceps','shoulders'],
+  'dumbbell flyes': ['chest'],
+  'cable crossover': ['chest'],
+  'push-ups': ['chest','triceps','shoulders'],
+  'chest dips': ['chest','triceps'],
+  'barbell row': ['back','biceps'],
+  'dumbbell row': ['back','biceps'],
+  'cable row': ['back','biceps'],
+  'lat pulldown': ['back','biceps'],
+  'pull-ups': ['back','biceps'],
+  'chin-ups': ['back','biceps'],
+  'deadlift': ['back','hamstrings','glutes'],
+  't-bar row': ['back','biceps'],
+  'face pulls': ['back','shoulders'],
+  'barbell curl': ['biceps','forearms'],
+  'dumbbell curl': ['biceps','forearms'],
+  'hammer curl': ['biceps','forearms'],
+  'preacher curl': ['biceps'],
+  'cable curl': ['biceps'],
+  'concentration curl': ['biceps'],
+  'tricep pushdown': ['triceps'],
+  'tricep dips': ['triceps','chest'],
+  'skull crushers': ['triceps'],
+  'overhead tricep extension': ['triceps'],
+  'close-grip bench press': ['triceps','chest'],
+  'kickbacks': ['triceps'],
+  'squat': ['quads','glutes','hamstrings'],
+  'leg press': ['quads','glutes'],
+  'lunges': ['quads','glutes','hamstrings'],
+  'leg extension': ['quads'],
+  'leg curl': ['hamstrings'],
+  'romanian deadlift': ['hamstrings','glutes','back'],
+  'calf raises': ['calves'],
+  'hip thrust': ['glutes','hamstrings'],
+  'bulgarian split squat': ['quads','glutes'],
+  'hack squat': ['quads'],
+  'shoulder press': ['shoulders','triceps'],
+  'lateral raise': ['shoulders'],
+  'front raise': ['shoulders'],
+  'rear delt fly': ['shoulders','back'],
+  'shrugs': ['shoulders','back'],
+};
+
+function getMusclesForExercise(name) {
+  const key = name.toLowerCase().trim();
+  if (EXERCISE_MUSCLES[key]) return EXERCISE_MUSCLES[key];
+  // Fuzzy match: check if exercise name contains a known key
+  for (const [k, v] of Object.entries(EXERCISE_MUSCLES)) {
+    if (key.includes(k) || k.includes(key)) return v;
+  }
+  return [];
+}
+
+function getWorkedMusclesThisWeek() {
+  const history = Store.getHistory();
+  const prog = Store.getProgram();
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(now.getDate() - 7);
+
+  const worked = {};  // muscle -> { lastDate, exercises: Set }
+
+  for (const session of history) {
+    const sd = new Date(session.date);
+    if (sd < weekAgo) continue;
+
+    const exercises = prog[session.split] || [];
+    for (let ei = 0; ei < exercises.length; ei++) {
+      const doneSets = session.sets.filter(s => s.exercise === ei && s.done && !s.warmup);
+      if (!doneSets.length) continue;
+
+      const muscles = getMusclesForExercise(exercises[ei].name);
+      for (const m of muscles) {
+        if (!worked[m]) worked[m] = { lastDate: session.date, exercises: new Set() };
+        worked[m].exercises.add(exercises[ei].name);
+        if (new Date(session.date) > new Date(worked[m].lastDate)) {
+          worked[m].lastDate = session.date;
+        }
+      }
+    }
+  }
+  return worked;
+}
+
+function renderBodyMap() {
+  const worked = getWorkedMusclesThisWeek();
+
+  // Color the SVG muscle zones
+  document.querySelectorAll('.muscle-zone').forEach(el => {
+    const muscle = el.dataset.muscle;
+    if (worked[muscle]) {
+      el.classList.add('worked');
+    } else {
+      el.classList.remove('worked');
+    }
+  });
+
+  // Render summary list
+  const listEl = document.getElementById('muscle-list');
+  listEl.innerHTML = MUSCLE_GROUPS.map(m => {
+    const w = worked[m];
+    const statusCls = w ? 'worked' : 'resting';
+    const statusText = w ? '✓ Worked' : '✗ Rest';
+    const label = m.charAt(0).toUpperCase() + m.slice(1);
+    return `<div class="muscle-list-row" data-muscle="${m}">
+      <span>${label}</span>
+      <span class="muscle-status ${statusCls}">${statusText}</span>
+    </div>`;
+  }).join('');
+
+  // Click handlers for list rows
+  listEl.querySelectorAll('.muscle-list-row').forEach(row => {
+    row.addEventListener('click', () => showMuscleDetail(row.dataset.muscle, worked));
+  });
+}
+
+function showMuscleDetail(muscle, worked) {
+  const detail = document.getElementById('muscle-detail');
+  const nameEl = document.getElementById('muscle-detail-name');
+  const bodyEl = document.getElementById('muscle-detail-body');
+
+  const label = muscle.charAt(0).toUpperCase() + muscle.slice(1);
+  nameEl.textContent = label;
+
+  const w = worked ? worked[muscle] : getWorkedMusclesThisWeek()[muscle];
+
+  if (w) {
+    const d = new Date(w.lastDate);
+    const dateStr = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const exList = [...w.exercises].map(e => `<div style="padding:0.15rem 0">• ${e}</div>`).join('');
+    bodyEl.innerHTML = `
+      <div class="muscle-status worked" style="display:inline-block;margin-bottom:0.5rem">✓ Worked this week</div>
+      <div class="text-dim text-sm">Last hit: ${dateStr}</div>
+      <div class="mt-sm text-sm"><strong>Exercises:</strong>${exList}</div>`;
+  } else {
+    // Find all exercises that target this muscle
+    const targeting = Object.entries(EXERCISE_MUSCLES)
+      .filter(([_, muscles]) => muscles.includes(muscle))
+      .map(([name]) => name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '));
+    const suggestions = targeting.slice(0, 5).map(e => `<div style="padding:0.15rem 0">• ${e}</div>`).join('');
+    bodyEl.innerHTML = `
+      <div class="muscle-status resting" style="display:inline-block;margin-bottom:0.5rem">✗ Not worked this week</div>
+      <div class="mt-sm text-sm"><strong>Try these:</strong>${suggestions}</div>`;
+  }
+
+  detail.style.display = 'block';
+}
+
 // ── Event Wiring ────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderHome();
@@ -1477,6 +1632,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Bodyweight
   document.getElementById('btn-save-bw').addEventListener('click', saveBodyweight);
+
+  // Body map - SVG click handlers
+  document.querySelectorAll('.muscle-zone').forEach(el => {
+    el.addEventListener('click', () => {
+      showMuscleDetail(el.dataset.muscle);
+    });
+  });
+  document.getElementById('muscle-detail-close').addEventListener('click', () => {
+    document.getElementById('muscle-detail').style.display = 'none';
+  });
 
   document.getElementById('btn-create').addEventListener('click', () => {
     currentEditDay = 'backchest';
@@ -1554,6 +1719,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.dataset.view === 'home') renderHome();
+      if (btn.dataset.view === 'body') renderBodyMap();
       if (btn.dataset.view === 'select') renderWorkoutList();
       if (btn.dataset.view === 'history') renderHistory();
       if (btn.dataset.view === 'stats') renderStatsView();
